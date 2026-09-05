@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div id="head" style="position: fixed">
+	<h1 style="position: fixed">Ellipse Test</h1>
+	<label><input type="checkbox" checked="true" onclick="$ ^= 0x4">Douglas McIlroy</label>
+	<label><input type="checkbox" onclick="$ ^= 0x1">Min. Residual (holes: steep tan.)</label>
+	<label><input type="checkbox" onclick="$ ^= 0x2">Approx0</label>
+	<label><input type="checkbox" onclick="$ ^= 0x8">Circle</label>
+	<label><input type="checkbox" onclick="$ ^= 0x10">Approx1</label>
+</div>
+<canvas id="cvs" width="32768" height="576"></canvas>
+<script>
+/* Ellipse rasterizer (no multiplication or division in func. ellipse_approx0/ellipse_approx) Motivation: prove that an ellipse is a squished circle. A consequence: the ellipse_approx algorithm. */
+{
+	var	ctx = cvs.getContext("2d"),
+		w = 32768, h = 576,
+		imgData = ctx.createImageData(w, h),
+		buffer = new Uint32Array(imgData.data.buffer),	/*	32-bit view	*/
+		$ = 0x4,
+		foo = [ellipse_minr, ellipse_approx0, ellipse_douglasmcilroy, circle, ellipse_approx1];
+}
+
+imgData.data.fill ||	/*	IE11 fix	*/
+	(imgData.data.fill = function () {
+							for (let i = w * h; i--; )	/*	for: w === 0 || h === 0	*/
+								buffer[i] = 0;
+						});
+
+function plot(x, y, r, g, b) {
+	buffer[y * w + x] = (0xff << 24)	/*	alpha	*/
+		+ (b << 16) + (g << 8) + (r << 0);
+}
+
+function ellipse_douglasmcilroy(xc, yc, a, b) {
+	var x = 0, y = b,	/* e(x,y) = bˆ2*xˆ2 + aˆ2*yˆ2 - aˆ2*bˆ2 */
+		a2 = a * a, b2 = b * b,
+		crit1 = -(a2/4 + a % 2 + b2),
+		crit2 = -(b2/4 + b % 2 + a2),
+		crit3 = -(b2/4 + b % 2),
+		t = -a2 * y,	/* t = e(x+1/2,y-1/2) - (aˆ2+bˆ2)/4 */
+		dxt = 2 * b2 * x, dyt = -2 * a2 * y,
+		d2xt = 2 * b2, d2yt = 2 * a2;
+
+	while (y >= 0 && x <= a) {
+		plot(xc + x, yc + y, 0, 255, 0);
+		if (x != 0 || y != 0)
+			plot(xc - x, yc - y, 0, 255, 0);
+		if (x != 0 && y != 0) {
+			plot(xc + x, yc - y, 0, 255, 0);
+			plot(xc - x, yc + y, 0, 255, 0);
+		}
+		if (t + b2*x <= crit1 ||	/* e(x+1,y-1/2) <= 0 */
+			t + a2*y <= crit3)	/* e(x+1/2,y) <= 0 */
+			x++, dxt += d2xt, t += dxt;
+		else if( t - a2*y > crit2)	/* e(x+1/2,y-1) > 0 */
+			y--, dyt += d2yt, t += dyt;
+		else {
+			x++, dxt += d2xt, t += dxt;
+			y--, dyt += d2yt, t += dyt;
+		}
+	}
+}
+
+function plot8(x0, y0, x, y, X, Y, r, g, b) {
+	var i = [];
+
+	do
+		do
+			do
+				plot(x0 + x, y0 + Y, r, g, b);
+			while (x = -x, i[0] ^= 0x1);
+		while (Y = -Y, i[1] ^= 0x1);
+	while (x ^= y, y ^= x, x ^= y, X ^= Y, Y ^= X, X ^= Y, i[2] ^= 0x1);
+}
+
+var plotd = [function (x0, y0, x, y, X, Y, r, g, b) { plot8(x0, y0, Y, X, y, x, r, g, b); },
+			 function (x0, y0, x, y, X, Y, r, g, b) { plot8(x0, y0, x, y, X, Y, r, g, b); }];
+
+function ellipse_approx0(x0, y0, a, b) {	/*	circle & line mongrel	*/
+	var x = 0, y, d,
+		X = x, Y, Dx = x, Dy = x;
+
+	(i = a >= b | 0) || 
+		(a ^= b, b ^= a, a ^= b);	/*	everything else,
+							except the plot call, stays the same	*/
+	for (y = a, d = -y, Y = b;;) {
+/* @: */plotd[i](x0, y0, x, y, X, Y, 255, 0, 0);
+		/*	next iteration	*/
+		d += 2 * x + 1;
+		x++;
+		if (d >= 0) {
+			y--;
+			if (x > y)
+				return;
+			d -= 2 * y;
+			Dy += b;
+			if (2 * Dy > a) {
+				Y--;
+				Dy -= a;
+			}
+		}
+		Dx += b;
+		if (2 * Dx > a) {
+			X++;
+			Dx -= a;
+		}
+	}	/*	JMP @	*/
+}
+
+/*
+// C original:
+function ellipse_approx(x0, y0, a, b) {
+	var x, y, d,
+		X, Y, Dx, Dy;
+
+	for (x = 0, y = a, d = -y,
+		 X = x, Y = b, Dx = Dy = -(a >> 1);;) {	//	@:
+		plot8e(x0, y0, x, y, X, Y);
+		//	next iteration
+		d += 2 * x + 1;
+		x++;
+		if (d >= 0) {
+			y--;
+			if (x > y)
+				return;
+			d -= 2 * y;
+			Dy += b;
+			if (Dy > 0) {
+				Y--;
+				Dy -= a;
+			}
+		}
+		Dx += b;
+		if (Dx > 0) {
+			X++;
+			Dx -= a;
+		}
+	}	//	JMP @
+}
+*/
+
+function ellipse_approx1(x0, y0, a, b) {	/*	circle & line mongrel	*/
+	var x, y, d,
+		X, Y, Dx, Dy;
+
+	(i = a >= b | 0) || 
+		(a ^= b, b ^= a, a ^= b);	/*	everything else,
+							except the plot call, stays the same	*/
+	for (x = 0, y = a, d = -y,
+		 X = x, Y = b, Dx = Dy = -(a >> 1);;) {
+/* @: */plotd[i](x0, y0, x, y, X, Y, 0, 255, 0);
+		/*	next iteration	*/
+		d += 2 * x + 1;
+		x++;
+		if (d >= 0) {
+			y--;
+			if (x > y)
+				return;
+			d -= 2 * y;
+			Dy += b;
+			if (Dy > 0) {
+				Y--;
+				Dy -= a;
+			}
+		}
+		Dx += b;
+		if (Dx > 0) {
+			X++;
+			Dx -= a;
+		}
+	}	/*	JMP @	*/
+}
+
+function plot4(x0, y0, x, y, r, g ,b) {
+	var i = [];
+
+	do
+		do
+			plot(x0 + x, y0 + y, r, g, b);
+		while (x = -x, i[0] ^= 0x1);
+	while (y = -y, i[1] ^= 0x1);
+}
+
+function abs(x) {
+	return x /* SAR */>> 31 ^ x - (x /* SHR */>>> 31);	/*	use Math.abs instead
+													abs: JS will conv. double to 32-bit signed int and back	*/
+}
+
+function ellipse_minr(x0, y0, a, b) {	/*	brute force min. residual approx. (holes)	*/
+	var x = a, y, i, r, minr;
+
+	a *= a;
+	do {
+		i = b, minr = Number.POSITIVE_INFINITY;	/*	Number.MAX_SAFE_INTEGER: !IE11	*/
+		do {
+			if ((r = Math.abs(b * b * (x * x - a) + a * i * i)) /*	r = b * b * (x * x - a * a) + a * a * i * i, (r *= r)	*/
+				< minr) {
+				minr = r;
+				y = i;
+			}
+		} while (i--);
+		plot4(x0, y0, x, y, 255, 255, 0);
+	} while (x--);
+}
+
+function plot8c(x0, y0, x, y, r, g, b) {
+	var i = [];
+
+	do
+		do
+			do
+				plot(x0 + x, y0 + y, r, g, b);
+			while (x = -x, i[0] ^= 0x1);
+		while (y = -y, i[1] ^= 0x1);
+	while (x ^= y, y ^= x, x ^= y, i[2] ^= 0x1);
+}
+
+function circle(x0, y0, r) {
+	var x = 0, y = r, d = -y;	/*	-y shift so that d is compared to 0 below instead of to y,
+								this also cancels a +1 i.e., actually di = d[i-1] - (2yi + 1) *+ 1* = d[i-1] - 2yi since yi = y[i-1] - 1 (each update is one step closer to 0 "from below")	*/
+	for (;;) {	/*	at least one point	*/
+		plot8c(x0, y0, x, y, 0, 255, 255);
+		/*	next iteration	*/
+		d += 2 * x + 1;	/*	xi = x[i-1] + 1: (x[i-1] + 1)**2 + y[i-1]**2 - r**2 = (x[i-1]**2 + y[i-1]**2 - r**2) + 2x[i-1] + 1  = d[i-1] + 2x[i-1] + 1 >= y[i-1] =>
+				|(x[i-1] + 1)**2 + (y[i-1] - 1)**2 - r**2| = |d[i-1] + 2x[i-1] + 1 - [2(y[i-1] - 1) + 1]| < d[i-1] + 2x[i-1] + 1: di = d[i-1] + 2x[i-1] + 1 - [2(y[i-1] - 1) + 1], yi = y[i-1] - 1	*/
+		x++;	/*	xi = x[i-1] + 1	*/
+		if (d >= 0) {
+			y--;	/*	yi = y[i-1] - 1	*/
+			if (y < x)	/*	xi >= y[i-1] => d >= 0 because slope[i-1, i] <= -1 i.e., the above if-block won't be skipped	*/
+				return;
+			d -= 2 * y;	/*	di = d[i-1] + 2x[i-1] + 1 - (2yi + 1)	*/
+		}
+	}
+}
+
+function refresh(t) {
+	var i = 0, j = i, k, l = i;
+
+	do {
+		k = Math.floor(2 * i * (Math.sin(t/3000) + 1) * .5 + .5);
+		do if ($ & 1 << (l % 5))
+			foo[l % 5](j + i, 64 + 2 * i, i, k);
+		while (++l % 5);
+	} while (j += 2 * (i + 1), ++i < 128);
+
+	ctx.putImageData(imgData, 0, 0);
+	requestAnimationFrame(refresh);
+	imgData.data.fill(0);
+}
+
+requestAnimationFrame(refresh);
+</script>
+</body>
+</html>
