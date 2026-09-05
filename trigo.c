@@ -1,3 +1,5 @@
+/* CORDIC */
+
 /*
 sign(sin(x)) = x / PI % 2 = 0: +, x / PI % 2 = 1: -
 sign(cos(x)) = x / PI/2 % 4 = {0, 3}: +, x / PI/2 % 4 = {1, 2}: -
