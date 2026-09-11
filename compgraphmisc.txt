@@ -1,10 +1,10 @@
-*** Viewplane to screen coords. ***:
+*** Viewplane to screen coords. ***
 
           +---+
 viewport: |...|
           +---+
  viewplane      screen
-                X (top-left corner)
+              X: 0,0 top-left corner of viewport/screen
      1           \
      |          .5,.5---[width-.5]:
  -1--.--1  ->     |
@@ -16,7 +16,7 @@ origin of screen-frame at (-1 + 1/width, height/width - 1/width) in viewplane fr
 x_screen = (x_viewplane + 1)*.5*width - .5
 y_screen = (-y_viewplane + height/width)*.5*width - .5
 
-*** Persp. correct texture mapping ***:
+*** Persp. correct texture mapping ***
 
 [i j k]: view-space
 [u, v] tex. base.
@@ -34,12 +34,15 @@ O'w
 x[y z t]: x in terms of y, z, t
 
 OM = [OM.w^v/(u.w^v)]*u + [OM.u^w/(v.u^w)]*v + [OM.v^u/(w.v^u)]*w
-  = [OM.w^v/(w.v^u)]*u + [OM.u^w/(w.v^u)]*v + [OM.v^u/(w.v^u)]*w
+  = [OM.w^v/(w.v^u)]*u + [OM.u^w/(w.v^u)]*v + [OM.v^u/(w.v^u)]*w (w.v^u = u.w^v = v.u^w: volume of parallelepipedon)
 OM[u v w] = [OM.w^v/(w.v^u) OM.u^w/(w.v^u) OM.v^u/(w.v^u)] (*)
 
-Proj. texel (pixel) P, retro proj. pixel P (texel) T, OT = w.v^u/(OP.v^u)*OP = [OP.w^v/(OP.v^u) OP.u^w/(OP.v^u) 1][u v w]
-No need for world-view transform (see below.)
+Proj. texel T: pixel P, retro proj. pixel P: texel T, OT[u v w] = w.v^u/(OP.v^u)*OP[u v w] = [OP.w^v/(OP.v^u) OP.u^w/(OP.v^u) 1]
+No need for world-view transform.
 
+*** Persp. correct texture mapping with u, v at the vertices ***
+
+1) As derived from the above
 OP[i j k] = [x y 1]    OT[i j k] = [x*z y*z z]
 OT[u v w] = [(x*z*x[w^v]** + y*z*y[w^v] + z*z[w^v])/(w.v^u) (x*z*x[u^w] + y*z*y[u^w] + z*z[u^w])/(w.v^u) 1] (see *, above)
           = [z*(x*x[w^v] + y*y[w^v] + z[w^v])/(w.v^u) z*(x*x[u^w] + y*y[u^w] + z[u^w])/(w.v^u) 1]
@@ -53,8 +56,7 @@ Thus lerp both (u|v)/z and 1/z, mul. by reciprocal of 1/z in order to retrieve (
 * A = x[v^u] B = y[v^u] C = z[v^u] D = w.v^u
 ** x[X] means "x component of vec. X"
 
-*** Persp. correct texture mapping with u, v at the vertices ***:
-
+2)
 texture plane eq.: a*x + b*y + c*z - d = 0
 xv = xs*zv, yv = ys*zv
 a*xs*zv + b*ys*zv + c*zv = d
@@ -64,9 +66,9 @@ d != 0, A = a/d, B = b/d, C = c/d:
 A*xs + B*ys + C = 1/zv (1/zv linear with respect to xs, ys)
 u, v linear wrt. xv, yv, zv i.e., u = X*xv + Y*yv + Z*zv + W (e.g., u = Ux*xv + Uy*yv + Uz*zv + [-Px*Ux -Py*Uy -Pz*Uz], U vec. & P org. on plane)
 u/zv = X*xs*zv/zv + Y*ys*zv/zv + Z*zv/zv + W/zv = X*xs + Y*ys + Z + W/zv = X*xs + Y*ys + Z + W*(A*xs + B*ys + C)
-That is, u/zv = (X + W*A)*xs + (Y + W*B)*ys + (Z + W*C): u/zv (and likewise, v/zv) linear wrt. xs, ys)
+That is, u/zv = (X + W*A)*xs + (Y + W*B)*ys + (Z + W*C): u/zv (and likewise, v/zv) linear wrt. xs, ys.
 
-*** Cross and Dot products ***:
+*** Cross and Dot products ***
 
 Imagine 3 mutually orthogonal planes p, q, r. Let p ^ q ^ r  = O and x, y, z be 3 unit segments on resp. lines p ^ r, p ^ q and q ^ r making an oriented frame of reference. Further introduce 3 lines i, j, k with common point O such that k is orthogonal to plane s passing through both i and j. Suppose 3 directed segments of resp. i, j, k starting at O. Call u, v, w the vectors determined by these segments and A the (nonsigned) area of parallelogram (u, v). The problem is to get a possible value for w from u and v.
 Project u and v on p, q and r. Since the frame is oriented, let Ap, Aq, Ar be the signed areas of the projections of (u,v) on p, q, r.
@@ -88,7 +90,7 @@ Introduce d such that |d| = 1 and angle(b, d) = PI/2. Put x = a.b, y = a.d and a
 It follows that a' = y*sin(angle(b, c))*b - x*sin(angle(b, c))*d = -x*c + (y*sin(angle(b, c)) - (-x)*cos(angle(b, c)))*b = (a.c)*b-(a.b)*c,
 since a.c = y*cos(PI/2-angle(b, c)) - (-x)*sin(PI/2-angle(b, c)) = y*sin(angle(b, c)) + x*cos(angle(b, c))
 
-*** Polygon area A, centroid C ***:
+*** Polygon area A, centroid C ***
 
 x0 = xn, y0 = yn
 A = 1/2*sum[i=0...n-1: (xi + xi+1)*(yi+1 - yi)]
@@ -110,7 +112,8 @@ a(p) {	(* at least 3 points, |a(p)| = 2*area(p) and a(p) colinear with the norma
 	return b
 }
 
-*** World/View transform ***:
+*** World/View transform ***
+
       i'   j'   k'
 i    [1    0    0]
 j    [0    1    0]
@@ -122,7 +125,7 @@ T = j	[                cos(x) * sin(z)                                cos(x) * c
 
 M[i' j' k'] = M[i j k] * T
 
-Applying prosthaphaeretic rules:
+Applying prosthaphaeretic rules
 
 cos(a) * cos(b) = (cos(a + b) + cos(a - b)) / 2
 sin(a) * sin(b) = (cos(a - b) - cos(a + b)) / 2 (e.g., from cos(a + b) = cos(a) * cos(b) - sin(a) * sin(b))
