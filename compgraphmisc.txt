@@ -63,10 +63,19 @@ a*xs*zv + b*ys*zv + c*zv = d
 a*xs + b*ys + c = d/zv (d = 0: plane passes through origin i.e., eye, hence unseen as line on viewplane)
 
 d != 0, A = a/d, B = b/d, C = c/d:
-A*xs + B*ys + C = 1/zv (1/zv linear with respect to xs, ys)
-u, v linear wrt. xv, yv, zv i.e., u = X*xv + Y*yv + Z*zv + W (e.g., u = Ux*xv + Uy*yv + Uz*zv + [-Px*Ux -Py*Uy -Pz*Uz], U vec. & P org. on plane)
-u/zv = X*xs*zv/zv + Y*ys*zv/zv + Z*zv/zv + W/zv = X*xs + Y*ys + Z + W/zv = X*xs + Y*ys + Z + W*(A*xs + B*ys + C)
-That is, u/zv = (X + W*A)*xs + (Y + W*B)*ys + (Z + W*C): u/zv (and likewise, v/zv) linear wrt. xs, ys.
+A*xs + B*ys + C = 1/zv (1/zv linear with respect to xs, ys) (*)
+
+u, v linear wrt. xv, yv, zv i.e., u = X*xv + Y*yv + Z*zv + W and v = X'*xv + Y'*yv + Z'*zv + W':
+let U, V be tex. base vectors, W = U^V and P tex. org., then: u = (xv - P[x])*V^W[x]/(U.V^W) + (yv - P[y])*V^W[y]/(U.V^W) + (zv - P[z])*V^W[z]/(U.V^W)
+Putting X = V^W[x]/(U.V^W), Y = V^W[y]/(U.V^W), Z = V^W[z]/(U.V^W) and T = -(P[x]*X + P[y]*Y + P[z]*Z)
+u = X*xv + Y*yv + Z*zv + T
+
+Likewise: v = (xv - P[x])*W^U[x]/(V.W^U = U.V^W) + (yv - P[y])*W^U[y]/(U.V^W) + (zv - P[z])*W^U[z]/(U.V^W)
+X' = W^U[x]/(U.V^W), Y' = W^U[y]/(U.V^W), Z' = W^U[z]/(U.V^W), T' = -(P[x]*X' + P[y]*Y' + P[z]*Z')
+v = X'*xv + Y'*yv + Z'*zv + T'
+
+Then, u/zv = X*xs*zv/zv + Y*ys*zv/zv + Z*zv/zv + T/zv = X*xs + Y*ys + Z + T/zv = X*xs + Y*ys + Z + T*(A*xs + B*ys + C) (cf. (*) above)
+That is, u/zv = (X + T*A)*xs + (Y + T*B)*ys + (Z + T*C): u/zv (and v/zv) linear wrt. xs, ys.
 
 *** Cross and Dot products ***
 
